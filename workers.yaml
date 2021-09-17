@@ -1,0 +1,145 @@
+common:
+  key_name: data.terraform_remote_state.staging.ec2_key_name
+  subnets: data.terraform_remote_state.staging.private_subnets_bohr
+
+workers:
+  compute:
+    instanceTypes:
+      - m5ad.2xlarge
+      - c5d.2xlarge
+    autoscaling: true
+    asg:
+      minSize: 1
+      desiredCapacity: 6
+      maxSize: 18
+      onDemandBaseCapacity: 1
+      onDemandPercentageAboveBaseCapacity: 0
+      spotInstancePools: 2
+    taints: []
+    labels:
+      onDemand:
+        - node-role.kubernetes.io/worker=true
+      spot:
+        - node-role.kubernetes.io/spot-worker=true
+    # https://v1-13.docs.kubernetes.io/docs/reference/command-line-tools-reference/kubelet/
+    # evictionHard: mapStringString - A set of eviction thresholds (e.g. memory.available<1Gi)
+    # [default=imagefs.available<15%,memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%]
+    evictionHard: "memory.available<750Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%"
+    # kubeReserved - A set of ResourceName=ResourceQuantity (e.g. cpu=200m,memory=500Mi,ephemeral-storage=1Gi) pairs that describe resources reserved for kubernetes system components.
+    # Currently cpu, memory and local ephemeral storage for root file system are supported. [default=none]
+    kubeReserved: "cpu=250m,memory=1Gi,ephemeral-storage=1Gi"
+    # systemReserved - A set of ResourceName=ResourceQuantity pairs that describe resources reserved for non-kubernetes components.
+    # Currently only cpu and memory are supported. [default=none]
+    systemReserved: "cpu=250m,memory=0.2Gi,ephemeral-storage=1Gi"
+    securityGroups:
+      - ${aws_security_group.workers.id}
+    iamInstanceProfile: workers
+    tfDependencies:
+      - aws_eks_cluster.main
+      - aws_iam_role_policy_attachment.workers_EKSWorkerNodePolicy
+      - aws_iam_role_policy_attachment.workers_EKS_CNI_Policy
+  data:
+    instanceTypes:
+      - m5a.2xlarge
+    autoscaling: true
+    asg:
+      minSize: 1
+      desiredCapacity: 2
+      maxSize: 3
+      onDemandBaseCapacity: 2
+      onDemandPercentageAboveBaseCapacity: 0
+      spotInstancePools: 0
+    taints:
+      - data-worker=true:NoSchedule
+    labels:
+      onDemand:
+        - node-role.kubernetes.io/data-worker=true
+      spot:
+        - node-role.kubernetes.io/spot-data=true
+    # https://v1-13.docs.kubernetes.io/docs/reference/command-line-tools-reference/kubelet/
+    # evictionHard: mapStringString - A set of eviction thresholds (e.g. memory.available<1Gi)
+    # [default=imagefs.available<15%,memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%]
+    evictionHard: "memory.available<750Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%"
+    # kubeReserved - A set of ResourceName=ResourceQuantity (e.g. cpu=200m,memory=500Mi,ephemeral-storage=1Gi) pairs that describe resources reserved for kubernetes system components. 
+    # Currently cpu, memory and local ephemeral storage for root file system are supported. [default=none]
+    kubeReserved: "cpu=250m,memory=1Gi,ephemeral-storage=1Gi"
+    # systemReserved - A set of ResourceName=ResourceQuantity pairs that describe resources reserved for non-kubernetes components. 
+    # Currently only cpu and memory are supported. [default=none]
+    systemReserved: "cpu=250m,memory=0.2Gi,ephemeral-storage=1Gi"
+    securityGroups:
+      - ${aws_security_group.workers.id}
+    iamInstanceProfile: workers
+    tfDependencies:
+      - aws_eks_cluster.main
+      - aws_iam_role_policy_attachment.workers_EKSWorkerNodePolicy
+      - aws_iam_role_policy_attachment.workers_EKS_CNI_Policy
+  edge:
+    instanceTypes:
+      - t3.small
+      - t2.small
+      - t3.medium
+    autoscaling: true
+    asg:
+      minSize: 2
+      desiredCapacity: 2
+      maxSize: 3
+      onDemandBaseCapacity: 1
+      onDemandPercentageAboveBaseCapacity: 0
+      spotInstancePools: 2
+    taints:
+      - edge=true:NoSchedule
+    labels:
+      onDemand:
+        - node-role.kubernetes.io/edge=true
+      spot:
+        - node-role.kubernetes.io/spot-edge=true
+    # evictionHard: mapStringString - A set of eviction thresholds (e.g. memory.available<1Gi)
+    evictionHard: "memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%"
+    # kubeReserved - A set of ResourceName=ResourceQuantity (e.g. cpu=200m,memory=500Mi,ephemeral-storage=1Gi) pairs that describe resources reserved for kubernetes system components. 
+    # Currently cpu, memory and local ephemeral storage for root file system are supported. [default=none]
+    kubeReserved: "cpu=250m,memory=150Mi,ephemeral-storage=1Gi"
+    # systemReserved - A set of ResourceName=ResourceQuantity pairs that describe resources reserved for non-kubernetes components. 
+    # Currently only cpu and memory are supported. [default=none]
+    systemReserved: "cpu=250m,memory=150Mi,ephemeral-storage=1Gi"
+    securityGroups:
+      - ${aws_security_group.edge.id} # DMZ security groups
+    iamInstanceProfile: workers
+    tfDependencies:
+      - aws_eks_cluster.main
+      - aws_iam_role_policy_attachment.workers_EKSWorkerNodePolicy
+      - aws_iam_role_policy_attachment.workers_EKS_CNI_Policy
+  system:
+    instanceTypes:
+      - t3.small
+      - t3a.small
+      - t2.small
+    autoscaling: false
+    asg:
+      minSize: 1
+      desiredCapacity: 1
+      maxSize: 2
+      onDemandBaseCapacity: 0
+      onDemandPercentageAboveBaseCapacity: 0
+      spotInstancePools: 2
+    taints:
+      - system=true:NoSchedule
+    labels:
+      onDemand:
+        - node-role.kubernetes.io/system=true
+      spot:
+        - node-role.kubernetes.io/spot-system=true
+    # evictionHard: mapStringString - A set of eviction thresholds (e.g. memory.available<1Gi)
+    evictionHard: "memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%"
+    # kubeReserved - A set of ResourceName=ResourceQuantity (e.g. cpu=200m,memory=500Mi,ephemeral-storage=1Gi) pairs that describe resources reserved for kubernetes system components. 
+    # Currently cpu, memory and local ephemeral storage for root file system are supported. [default=none]
+    kubeReserved: "cpu=250m,memory=0.2Gi,ephemeral-storage=1Gi"
+    # systemReserved - A set of ResourceName=ResourceQuantity pairs that describe resources reserved for non-kubernetes components. 
+    # Currently only cpu and memory are supported. [default=none]
+    systemReserved: "cpu=250m,memory=0.2Gi,ephemeral-storage=1Gi"
+    securityGroups:
+      - ${aws_security_group.workers.id}
+    iamInstanceProfile: system_workers # privileged nodes
+    tfDependencies:
+      - aws_eks_cluster.main
+      - aws_iam_role_policy_attachment.system_workers_EKSWorkerNodePolicy
+      - aws_iam_role_policy_attachment.system_workers_EKS_CNI_Policy
