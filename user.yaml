@@ -1,0 +1,20 @@
+# This file will be used to input the user & roles for DataDog
+
+# Roles declaration 
+roles:
+  admin:
+    members: 
+     - toan.nguyen@fancycompany.com
+  reader:
+    members:
+     - reader@fancycompany.com
+     - heineken@fancycompany.com
+     - raj@fancycompany.com
+  developer:
+    members:
+     - developer@fancycompany.com
+     - tiger@fancycompany.com
+  guest:
+    members:
+     - andrii@fancycompany.com
+
